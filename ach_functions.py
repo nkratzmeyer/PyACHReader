@@ -47,11 +47,11 @@ class ACHFileReader(object):
             with open(self.file_name, 'r') as ach_file:
                 file_contents = ach_file.read().replace('\n', '').replace('\r', '')
 
-            self.parse_ach_file(file_contents)
+            self._parse_ach_file(file_contents)
         except FileNotFoundError as err:
             print("File does not exist -> " + str(err))
 
-    def parse_ach_file(self, contents):
+    def _parse_ach_file(self, contents):
         """Read the ach file"""
         file_length = len(contents)
 
@@ -59,21 +59,21 @@ class ACHFileReader(object):
             line = contents[index:index + self.LINE_LENGTH]
 
             if line.startswith('1'):
-                self.read_header(line)
+                self._read_header(line)
             elif line.startswith('5'):
-                self.read_batch_header(line)
+                self._read_batch_header(line)
             elif line.startswith('6'):
-                self.read_entry_detail(line)
+                self._read_entry_detail(line)
             elif line.startswith('7'):
-                self.read_addenda_record(line)
+                self._read_addenda_record(line)
             elif line.startswith('8'):
-                self.read_batch_control_record(line)
+                self._read_batch_control_record(line)
             elif line.startswith('9'):
                 if line == '9' * 94:
                     continue
-                self.read_file_control_record(line)
+                self._read_file_control_record(line)
 
-    def read_header(self, line):
+    def _read_header(self, line):
         """Parses a standard ACH File Header Line"""
         try:
             creation_date = datetime.strptime(line[23:33], '%y%m%d%H%M')
@@ -93,7 +93,7 @@ class ACHFileReader(object):
                             'Immediate Origin Name': line[63:86].strip(),
                             'Reference Code': line[86:93]}
 
-    def read_batch_header(self, line):
+    def _read_batch_header(self, line):
         """Parse a batch header line"""
         try:
             effective_entry_date = datetime.strptime(line[69:75], '%y%m%d')
@@ -115,7 +115,7 @@ class ACHFileReader(object):
                              'Batch Number': line[87:94]}
         self.batches.append(batch_header_dict)
 
-    def read_entry_detail(self, line):
+    def _read_entry_detail(self, line):
         """Read an entry detail Line"""
         account_number = 0
         try:
@@ -136,7 +136,7 @@ class ACHFileReader(object):
 
         self.entries.append(result_dict)
 
-    def read_addenda_record(self, line):
+    def _read_addenda_record(self, line):
         """Read an addenda record"""
         addenda_dict = {'Addenda Type Code:': line[1:3],
                         'Payment Related Info': line[3:83].strip(),
@@ -144,7 +144,7 @@ class ACHFileReader(object):
                         'Entry Detail Sequence Number': line[87:94]}
         self.addenda_records.append(addenda_dict)
 
-    def read_batch_control_record(self, line):
+    def _read_batch_control_record(self, line):
         """Read batch control record"""
         bcr_dict = {'SEC Code':  line[1:4],
                     'Entry Addenda Count': line[4:10],
@@ -157,7 +157,7 @@ class ACHFileReader(object):
                     'Batch Number': line[87:94]}
         self.batches.append(bcr_dict)
 
-    def read_file_control_record(self, line):
+    def _read_file_control_record(self, line):
         """Read file control record"""
         self.file_control_record = {'Batch Count': int(line[1:7]),
                                     'Block Count': int(line[7:13]),
@@ -173,6 +173,8 @@ class ACHFileReader(object):
         print('Batch Count: ' + str(self.file_control_record.get('Batch Count')))
         print('Total Debit Amount: ' +
               str(self.file_control_record.get('Total Debit Amount')))
+        print("Total Credit Amount: " +
+              str(self.file_control_record.get("Total Credit Amount")))
 
     def pp_all_entries(self):
         """Pretty Print all entries"""
@@ -183,6 +185,12 @@ class ACHFileReader(object):
         """Pretty Print an entry item"""
         print('Tran Code: {} {}'.format(entry['Transaction Code'],
                                         self.TRANSACTION_CODES[entry['Transaction Code']]))
-        print('Account Number: {} Individual ID: {}'.format(entry['Account Number'], 
-                                        entry['Individual ID']))
-                                                                 
+        print('Account Number: {} Individual ID: {}'.format(entry['Account Number'],
+                                                            entry['Individual ID']))
+        print('Amount: {}'.format(entry['Amount']))
+    
+    def search_by_account_number(self, account_num):
+        """Search all entries for a specific account number"""
+        for entry in self.entries:
+            if entry['Account Number'] == account_num:
+                self.pp_entry(entry)
