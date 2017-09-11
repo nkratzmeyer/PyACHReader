@@ -1,5 +1,6 @@
 """Helper functions for ACH reading"""
 from datetime import datetime
+import os.path
 
 
 class ACHFileReader(object):
@@ -13,6 +14,9 @@ class ACHFileReader(object):
         self.batches = []
         self.entries = []
         self.addenda_records = []
+        if not os.path.isfile(file_name):
+            raise ValueError('Path not found {} '.format(file_name))
+        self.read_file()
 
     SERVICE_CLASS_CODES = {'200': 'Mixed',
                            '220': 'Credits Only',
@@ -27,6 +31,7 @@ class ACHFileReader(object):
                          '32': 'Savings Credit - Automated Payment/Deposit',
                          '33': 'Savings Credit - Prenote',
                          '34': 'Savings Credit - Zero Dollar',
+                         '26': 'Demand Debit - Return Or NOC',
                          '27': 'Demand Debit - Automated Payment/Deposit',
                          '37': 'Savings Debit - Automated Payment/Deposit',
                          '42': 'GL Credit - Automated Payment/Deposit',
@@ -170,6 +175,7 @@ class ACHFileReader(object):
     def describe(self):
         """Print Details about the ACH File"""
         print('File Name: ' + self.file_name)
+        print('File create date: {}'.format(self.file_header['Creation Date']))
         print('Batch Count: ' + str(self.file_control_record.get('Batch Count')))
         print('Total Debit Amount: ' +
               str(self.file_control_record.get('Total Debit Amount')))
