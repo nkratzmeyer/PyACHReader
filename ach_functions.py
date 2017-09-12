@@ -8,14 +8,15 @@ class ACHFileReader(object):
     LINE_LENGTH = 94
 
     def __init__(self, file_name):
+        if not os.path.isfile(file_name):
+            raise ValueError('Path not found {} '.format(file_name))
         self.file_name = file_name
         self.file_header = {}
         self.file_control_record = {}
-        self.batches = []
+        self.batch_headers = []
+        self.batch_control_records = []
         self.entries = []
         self.addenda_records = []
-        if not os.path.isfile(file_name):
-            raise ValueError('Path not found {} '.format(file_name))
         self.read_file()
 
     SERVICE_CLASS_CODES = {'200': 'Mixed',
@@ -98,27 +99,7 @@ class ACHFileReader(object):
                             'Immediate Origin Name': line[63:86].strip(),
                             'Reference Code': line[86:93]}
 
-    def _read_batch_header(self, line):
-        """Parse a batch header line"""
-        try:
-            effective_entry_date = datetime.strptime(line[69:75], '%y%m%d')
-        except ValueError as err:
-            print('Error parsing effective entry date -> ' + str(err))
-            effective_entry_date = '00000000'
 
-        batch_header_dict = {'Service Class Code': line[1:4],
-                             'Company Name': line[4:20].strip(),
-                             'Company Discretionary Data': line[20:40].strip(),
-                             'Company ID': line[40:50].strip(),
-                             'SEC Code': line[50:53],
-                             'Company Entry Description': line[53:63].strip(),
-                             'Company Descriptive Date': line[63:69].strip(),
-                             'Effective Entry Date': effective_entry_date,
-                             'Settlement Date Julian': line[75:78],
-                             'Originator Status Code': line[78],
-                             'Originating DFI ID': line[79:87],
-                             'Batch Number': line[87:94]}
-        self.batches.append(batch_header_dict)
 
     def _read_entry_detail(self, line):
         """Read an entry detail Line"""
@@ -148,10 +129,32 @@ class ACHFileReader(object):
                         'Addenda Sequence Number': line[83:87],
                         'Entry Detail Sequence Number': line[87:94]}
         self.addenda_records.append(addenda_dict)
+    
+    def _read_batch_header(self, line):
+        """Parse a batch header line"""
+        try:
+            effective_entry_date = datetime.strptime(line[69:75], '%y%m%d')
+        except ValueError as err:
+            print('Error parsing effective entry date -> ' + str(err))
+            effective_entry_date = '00000000'
+
+        batch_header_dict = {'Service Class Code': line[1:4],
+                             'Company Name': line[4:20].strip(),
+                             'Company Discretionary Data': line[20:40].strip(),
+                             'Company ID': line[40:50].strip(),
+                             'SEC Code': line[50:53],
+                             'Company Entry Description': line[53:63].strip(),
+                             'Company Descriptive Date': line[63:69].strip(),
+                             'Effective Entry Date': effective_entry_date,
+                             'Settlement Date Julian': line[75:78],
+                             'Originator Status Code': line[78],
+                             'Originating DFI ID': line[79:87],
+                             'Batch Number': line[87:94]}
+        self.batch_headers.append(batch_header_dict)
 
     def _read_batch_control_record(self, line):
         """Read batch control record"""
-        bcr_dict = {'SEC Code':  line[1:4],
+        bcr_dict = {'Service Class Code':  line[1:4],
                     'Entry Addenda Count': line[4:10],
                     'Entry Hash': line[10:20],
                     'Total Debit Amount': int(line[20:32]) / 100,
@@ -160,7 +163,7 @@ class ACHFileReader(object):
                     'Message Auth Code': line[54:73].strip(),
                     'Originating DFI ID': line[79:87],
                     'Batch Number': line[87:94]}
-        self.batches.append(bcr_dict)
+        self.batch_control_records.append(bcr_dict)
 
     def _read_file_control_record(self, line):
         """Read file control record"""
@@ -195,6 +198,15 @@ class ACHFileReader(object):
                                                             entry['Individual ID']))
         print('Amount: {}'.format(entry['Amount']))
     
+    def pp_all_batches(self):
+        """Pretty print all batches"""
+        for batch in self.batch_headers:
+            self.pp_batch(batch)
+
+    def pp_batch(self, batch):
+        """Pretty print a single batch"""
+        print('SEC Code: ' + batch['SEC Code'])
+        
     def search_by_account_number(self, account_num):
         """Search all entries for a specific account number"""
         for entry in self.entries:
