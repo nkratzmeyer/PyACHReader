@@ -89,7 +89,7 @@ class ACHFileReader(object):
 
         self.file_header = {'Priority Code': line[1:3],
                             'Immediate Destination':  line[3:13].strip(),
-                            'Immediate Origin': line[13:23],
+                            'Immediate Origin': line[13:23].strip(),
                             'Creation Date': creation_date,
                             'File ID Modifier': line[33],
                             'Record Size': int(line[34:37].strip()),
@@ -98,8 +98,6 @@ class ACHFileReader(object):
                             'Immediate Destination Name': line[40:63].strip(),
                             'Immediate Origin Name': line[63:86].strip(),
                             'Reference Code': line[86:93]}
-
-
 
     def _read_entry_detail(self, line):
         """Read an entry detail Line"""
@@ -129,7 +127,7 @@ class ACHFileReader(object):
                         'Addenda Sequence Number': line[83:87],
                         'Entry Detail Sequence Number': line[87:94]}
         self.addenda_records.append(addenda_dict)
-    
+
     def _read_batch_header(self, line):
         """Parse a batch header line"""
         try:
@@ -175,8 +173,13 @@ class ACHFileReader(object):
                                     'Total Credit Amount': int(line[43:55]) / 100,
                                     'Reserved Data': line[55:94].strip()}
 
+    def separator(self):
+        """Print Onscreen Separator"""
+        print('-' * 50)
+    
     def describe(self):
         """Print Details about the ACH File"""
+        self.separator()
         print('File Name: ' + self.file_name)
         print('File create date: {}'.format(self.file_header['Creation Date']))
         print('Batch Count: ' + str(self.file_control_record.get('Batch Count')))
@@ -184,6 +187,7 @@ class ACHFileReader(object):
               str(self.file_control_record.get('Total Debit Amount')))
         print("Total Credit Amount: " +
               str(self.file_control_record.get("Total Credit Amount")))
+        self.separator()
 
     def pp_all_entries(self):
         """Pretty Print all entries"""
@@ -192,12 +196,12 @@ class ACHFileReader(object):
 
     def pp_entry(self, entry):
         """Pretty Print an entry item"""
-        print('Tran Code: {} {}'.format(entry['Transaction Code'],
-                                        self.TRANSACTION_CODES[entry['Transaction Code']]))
-        print('Account Number: {} Individual ID: {}'.format(entry['Account Number'],
-                                                            entry['Individual ID']))
-        print('Amount: {}'.format(entry['Amount']))
-    
+        self.separator()
+        print('Type: {}'.format(self.TRANSACTION_CODES[entry['Transaction Code']]))
+        for item in entry:
+            print(item.ljust(25, ' ') + ': {}'.format(entry[item]))
+        self.separator()
+
     def pp_all_batches(self):
         """Pretty print all batches"""
         for batch in self.batch_headers:
@@ -205,10 +209,22 @@ class ACHFileReader(object):
 
     def pp_batch(self, batch):
         """Pretty print a single batch"""
-        print('SEC Code: ' + batch['SEC Code'])
+        self.separator()
+        for item in batch:
+            print(item.ljust(27, ' ') + ': {}'.format(batch[item]))
         
+        self.separator()
+
     def search_by_account_number(self, account_num):
         """Search all entries for a specific account number"""
         for entry in self.entries:
-            if entry['Account Number'] == account_num:
+            if entry['Account Number'] == int(account_num):
                 self.pp_entry(entry)
+
+    def pp_file_header(self):
+        """Pretty Print the file header"""
+        self.separator()
+        for item in self.file_header:
+            print(item.ljust(27, ' ') + ": {}".format(self.file_header[item]))
+        
+        self.separator()
